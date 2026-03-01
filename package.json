@@ -1,0 +1,67 @@
+{
+  "name": "vscode-in-line-commenting",
+  "displayName": "Inline Commenting",
+  "description": "Add comments to highlighted text, similar to Google Docs",
+  "version": "0.1.0",
+  "publisher": "realkenlee",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "inlineComment.addComment",
+        "title": "Add Inline Comment",
+        "category": "Inline Comment"
+      },
+      {
+        "command": "inlineComment.deleteComment",
+        "title": "Delete Inline Comment",
+        "category": "Inline Comment"
+      },
+      {
+        "command": "inlineComment.showAll",
+        "title": "Show All Comments",
+        "category": "Inline Comment"
+      },
+      {
+        "command": "inlineComment.clearAll",
+        "title": "Clear All Comments",
+        "category": "Inline Comment"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "inlineComment.addComment",
+          "when": "editorHasSelection",
+          "group": "1_modification@99"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "inlineComment.addComment",
+        "key": "ctrl+alt+m",
+        "mac": "cmd+alt+m",
+        "when": "editorHasSelection"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}
