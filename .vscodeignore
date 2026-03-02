@@ -1,6 +1,10 @@
 .vscode/**
 .vscode-test/**
+.claude/**
 src/**
+testing/**
+test-comments.md
 .gitignore
 tsconfig.json
+package-lock.json
 **/*.map
