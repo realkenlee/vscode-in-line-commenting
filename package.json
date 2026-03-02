@@ -7,7 +7,13 @@
   "engines": {
     "vscode": "^1.85.0"
   },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/realkenlee/vscode-in-line-commenting.git"
+  },
   "categories": ["Other"],
+  "keywords": ["comments", "annotations", "review", "google docs", "inline"],
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -27,7 +33,8 @@
       {
         "command": "inlineComment.showAll",
         "title": "Show All Comments",
-        "category": "Inline Comment"
+        "category": "Inline Comment",
+        "icon": "$(comment)"
       },
       {
         "command": "inlineComment.clearAll",
@@ -41,6 +48,13 @@
           "command": "inlineComment.addComment",
           "when": "editorHasSelection",
           "group": "1_modification@99"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "inlineComment.showAll",
+          "group": "navigation",
+          "when": "editorIsOpen"
         }
       ]
     },
