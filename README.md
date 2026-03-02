@@ -2,6 +2,8 @@
 
 Add comments to highlighted text — just like Google Docs, right inside your editor.
 
+**[Download latest release (.vsix)](https://github.com/realkenlee/vscode-in-line-commenting/releases/latest)** → Extensions sidebar → ⋯ → Install from VSIX
+
 ---
 
 ## How It Works
