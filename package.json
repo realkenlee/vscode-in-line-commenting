@@ -3,6 +3,7 @@
   "displayName": "Inline Commenting",
   "description": "Add comments to highlighted text, similar to Google Docs",
   "version": "0.1.1",
+  "icon": "icon.png",
   "publisher": "KenLee",
   "engines": {
     "vscode": "^1.85.0"

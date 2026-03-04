@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Background -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb"/>
+      <stop offset="100%" style="stop-color:#1e3a8a"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="22" fill="url(#bg)"/>
+
+  <!-- Code lines (left/bottom area) -->
+  <rect x="14" y="72" width="52" height="7" rx="3.5" fill="white" opacity="0.25"/>
+  <rect x="14" y="85" width="70" height="7" rx="3.5" fill="white" opacity="0.25"/>
+  <rect x="14" y="98" width="42" height="7" rx="3.5" fill="white" opacity="0.25"/>
+  <rect x="14" y="111" width="60" height="7" rx="3.5" fill="white" opacity="0.25"/>
+
+  <!-- Highlighted / selected text line -->
+  <rect x="14" y="55" width="58" height="10" rx="5" fill="#facc15" opacity="0.9"/>
+
+  <!-- Comment bubble -->
+  <rect x="52" y="10" width="66" height="50" rx="12" fill="white"/>
+  <!-- Bubble tail pointing down-left toward highlighted text -->
+  <polygon points="60,60 76,60 68,72" fill="white"/>
+
+  <!-- Text lines inside bubble -->
+  <rect x="62" y="24" width="46" height="6" rx="3" fill="#2563eb" opacity="0.25"/>
+  <rect x="62" y="36" width="36" height="6" rx="3" fill="#2563eb" opacity="0.25"/>
+  <rect x="62" y="48" width="42" height="6" rx="3" fill="#2563eb" opacity="0.25"/>
+</svg>
