@@ -23,7 +23,19 @@ jobs:
       - name: Package extension
         run: npx @vscode/vsce package
 
+      - name: Get version
+        id: version
+        run: echo "tag=v$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Create tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.version.outputs.tag }} || true
+          git push origin ${{ steps.version.outputs.tag }} || true
+
       - name: Upload .vsix to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
           files: '*.vsix'
