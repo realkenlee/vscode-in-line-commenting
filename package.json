@@ -2,7 +2,7 @@
   "name": "vscode-in-line-commenting",
   "displayName": "Inline Commenting",
   "description": "Add comments to highlighted text, similar to Google Docs",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "icon": "icon.png",
   "publisher": "KenLee",
   "engines": {
