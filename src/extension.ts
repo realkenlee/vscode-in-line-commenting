@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import * as os from 'os';
 
 interface InlineComment {
   id: string;
@@ -42,16 +43,46 @@ function formatDate(isoString: string): string {
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 
-function getCommentsFilePath(workspaceRoot: string): string {
-  const dir = path.join(workspaceRoot, '.vscode');
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+// When workspaceRoot is defined, comments live in <workspaceRoot>/.vscode/inline-comments.json
+// and filePaths inside are relative to workspaceRoot.
+// When workspaceRoot is undefined (no folder open), storageRoot is globalStorageUri.fsPath,
+// comments live at <storageRoot>/inline-comments.json, and filePaths are absolute.
+
+function getCommentsFilePath(storageRoot: string, workspaceRoot: string | undefined): string {
+  if (workspaceRoot) {
+    const dir = path.join(workspaceRoot, '.vscode');
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    return path.join(dir, 'inline-comments.json');
   }
-  return path.join(dir, 'inline-comments.json');
+  if (!fs.existsSync(storageRoot)) {
+    fs.mkdirSync(storageRoot, { recursive: true });
+  }
+  return path.join(storageRoot, 'inline-comments.json');
 }
 
-function loadComments(workspaceRoot: string): InlineComment[] {
-  const filePath = getCommentsFilePath(workspaceRoot);
+// Write a pointer file so Claude Code (and other tools) can find the active
+// storage when no workspace folder is open and .vscode/inline-comments.json
+// doesn't exist.
+function writePointerFile(commentsFilePath: string): void {
+  try {
+    const dir = path.join(os.homedir(), '.vscode-inline-comments');
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(
+      path.join(dir, 'current.json'),
+      JSON.stringify({ storagePath: commentsFilePath }, null, 2),
+      'utf-8'
+    );
+  } catch {
+    // non-fatal — pointer file is a convenience for external tools
+  }
+}
+
+function loadComments(storageRoot: string, workspaceRoot: string | undefined): InlineComment[] {
+  const filePath = getCommentsFilePath(storageRoot, workspaceRoot);
   if (!fs.existsSync(filePath)) {
     return [];
   }
@@ -66,9 +97,25 @@ function loadComments(workspaceRoot: string): InlineComment[] {
   }
 }
 
-function saveComments(workspaceRoot: string, comments: InlineComment[]): void {
-  const filePath = getCommentsFilePath(workspaceRoot);
+function saveComments(storageRoot: string, workspaceRoot: string | undefined, comments: InlineComment[]): void {
+  const filePath = getCommentsFilePath(storageRoot, workspaceRoot);
   fs.writeFileSync(filePath, JSON.stringify(comments, null, 2), 'utf-8');
+}
+
+// Resolve a stored filePath to an absolute path on disk.
+function resolveFilePath(filePath: string, workspaceRoot: string | undefined): string {
+  if (path.isAbsolute(filePath)) {
+    return filePath;
+  }
+  return path.join(workspaceRoot!, filePath);
+}
+
+// Convert an absolute file path to the form stored in the JSON.
+function makeStoredPath(absPath: string, workspaceRoot: string | undefined): string {
+  if (!workspaceRoot) {
+    return absPath; // store absolute when no workspace
+  }
+  return path.relative(workspaceRoot, absPath);
 }
 
 // ─── Decorations ──────────────────────────────────────────────────────────────
@@ -98,9 +145,9 @@ const resolvedDecorationType = vscode.window.createTextEditorDecorationType({
   },
 });
 
-function applyDecorations(editor: vscode.TextEditor, comments: InlineComment[], workspaceRoot: string): void {
-  const relPath = path.relative(workspaceRoot, editor.document.uri.fsPath);
-  const fileComments = comments.filter(c => c.filePath === relPath);
+function applyDecorations(editor: vscode.TextEditor, comments: InlineComment[], workspaceRoot: string | undefined): void {
+  const absPath = editor.document.uri.fsPath;
+  const fileComments = comments.filter(c => resolveFilePath(c.filePath, workspaceRoot) === absPath);
 
   const activeDecos: vscode.DecorationOptions[] = [];
   const resolvedDecos: vscode.DecorationOptions[] = [];
@@ -129,7 +176,7 @@ function applyDecorations(editor: vscode.TextEditor, comments: InlineComment[], 
   editor.setDecorations(resolvedDecorationType, resolvedDecos);
 }
 
-function refreshDecorations(comments: InlineComment[], workspaceRoot: string): void {
+function refreshDecorations(comments: InlineComment[], workspaceRoot: string | undefined): void {
   for (const editor of vscode.window.visibleTextEditors) {
     applyDecorations(editor, comments, workspaceRoot);
   }
@@ -540,8 +587,8 @@ ${cardsHtml}
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
-async function navigateTo(comment: InlineComment, workspaceRoot: string): Promise<void> {
-  const absPath = path.join(workspaceRoot, comment.filePath);
+async function navigateTo(comment: InlineComment, workspaceRoot: string | undefined): Promise<void> {
+  const absPath = resolveFilePath(comment.filePath, workspaceRoot);
   const uri = vscode.Uri.file(absPath);
   const doc = await vscode.workspace.openTextDocument(uri);
   const editor = await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
@@ -552,10 +599,10 @@ async function navigateTo(comment: InlineComment, workspaceRoot: string): Promis
 
 // ─── Delete Comment (QuickPick) ───────────────────────────────────────────────
 
-async function deleteComment(workspaceRoot: string, comments: InlineComment[]): Promise<InlineComment[] | undefined> {
+async function deleteComment(storageRoot: string, workspaceRoot: string | undefined, comments: InlineComment[]): Promise<InlineComment[] | undefined> {
   const editor = vscode.window.activeTextEditor;
-  const relPath = editor ? path.relative(workspaceRoot, editor.document.uri.fsPath) : undefined;
-  const candidates = relPath ? comments.filter(c => c.filePath === relPath) : comments;
+  const storedPath = editor ? makeStoredPath(editor.document.uri.fsPath, workspaceRoot) : undefined;
+  const candidates = storedPath ? comments.filter(c => c.filePath === storedPath) : comments;
 
   if (candidates.length === 0) {
     vscode.window.showInformationMessage('No comments in this file.');
@@ -578,7 +625,7 @@ async function deleteComment(workspaceRoot: string, comments: InlineComment[]): 
   }
 
   const updated = comments.filter(c => c.id !== picked.detail);
-  saveComments(workspaceRoot, updated);
+  saveComments(storageRoot, workspaceRoot, updated);
   vscode.window.showInformationMessage('Comment deleted.');
   return updated;
 }
@@ -587,12 +634,13 @@ async function deleteComment(workspaceRoot: string, comments: InlineComment[]): 
 
 export function activate(context: vscode.ExtensionContext): void {
   const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (!workspaceFolders || workspaceFolders.length === 0) {
-    return;
-  }
-  const workspaceRoot = workspaceFolders[0].uri.fsPath;
+  const workspaceRoot: string | undefined = workspaceFolders?.[0]?.uri.fsPath;
+  const storageRoot = context.globalStorageUri.fsPath;
 
-  let comments = loadComments(workspaceRoot);
+  const commentsFilePath = getCommentsFilePath(storageRoot, workspaceRoot);
+  writePointerFile(commentsFilePath);
+
+  let comments = loadComments(storageRoot, workspaceRoot);
   let currentDraft: Draft | undefined;
   let panelHandlerRegistered = false;
 
@@ -651,7 +699,7 @@ export function activate(context: vscode.ExtensionContext): void {
               resolved: false,
             };
             comments = [...comments, newComment];
-            saveComments(workspaceRoot, comments);
+            saveComments(storageRoot, workspaceRoot, comments);
             refreshDecorations(comments, workspaceRoot);
             openOrRefreshPanel(); // clears draft
             break;
@@ -666,7 +714,7 @@ export function activate(context: vscode.ExtensionContext): void {
             comments = comments.map(c =>
               c.id === msg.commentId ? { ...c, resolved: msg.resolved as boolean } : c
             );
-            saveComments(workspaceRoot, comments);
+            saveComments(storageRoot, workspaceRoot, comments);
             refreshDecorations(comments, workspaceRoot);
             // No openOrRefreshPanel() — webview updates in place
             break;
@@ -676,7 +724,7 @@ export function activate(context: vscode.ExtensionContext): void {
             comments = comments.map(c =>
               c.id === msg.commentId ? { ...c, text: msg.text, editedAt: new Date().toISOString() } : c
             );
-            saveComments(workspaceRoot, comments);
+            saveComments(storageRoot, workspaceRoot, comments);
             refreshDecorations(comments, workspaceRoot);
             // No openOrRefreshPanel() — webview updates in place
             break;
@@ -684,7 +732,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
           case 'delete': {
             comments = comments.filter(c => c.id !== msg.commentId);
-            saveComments(workspaceRoot, comments);
+            saveComments(storageRoot, workspaceRoot, comments);
             refreshDecorations(comments, workspaceRoot);
             // No openOrRefreshPanel() — webview updates in place
             break;
@@ -698,13 +746,13 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('inlineComment.resolveById', ({ id }: { id: string }) => {
       comments = comments.map(c => c.id === id ? { ...c, resolved: !c.resolved } : c);
-      saveComments(workspaceRoot, comments);
+      saveComments(storageRoot, workspaceRoot, comments);
       refreshDecorations(comments, workspaceRoot);
       if (commentsPanel) { openOrRefreshPanel(); }
     }),
     vscode.commands.registerCommand('inlineComment.deleteById', ({ id }: { id: string }) => {
       comments = comments.filter(c => c.id !== id);
-      saveComments(workspaceRoot, comments);
+      saveComments(storageRoot, workspaceRoot, comments);
       refreshDecorations(comments, workspaceRoot);
       if (commentsPanel) { openOrRefreshPanel(); }
     })
@@ -724,7 +772,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       const draft: Draft = {
-        filePath: path.relative(workspaceRoot, editor.document.uri.fsPath),
+        filePath: makeStoredPath(editor.document.uri.fsPath, workspaceRoot),
         startLine: selection.start.line,
         startChar: selection.start.character,
         endLine: selection.end.line,
@@ -740,7 +788,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // ── Delete Comment (QuickPick) ──
   context.subscriptions.push(
     vscode.commands.registerCommand('inlineComment.deleteComment', async () => {
-      const updated = await deleteComment(workspaceRoot, comments);
+      const updated = await deleteComment(storageRoot, workspaceRoot, comments);
       if (updated) {
         comments = updated;
         refreshDecorations(comments, workspaceRoot);
@@ -768,7 +816,7 @@ export function activate(context: vscode.ExtensionContext): void {
       );
       if (confirm === 'Delete All') {
         comments = [];
-        saveComments(workspaceRoot, comments);
+        saveComments(storageRoot, workspaceRoot, comments);
         refreshDecorations(comments, workspaceRoot);
         vscode.window.showInformationMessage('All comments cleared.');
         if (commentsPanel) {
