@@ -28,7 +28,12 @@ jobs:
 
       - name: Get version
         id: version
-        run: echo "tag=v$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=v$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create tag
         run: |
