@@ -2,7 +2,7 @@
   "name": "vscode-in-line-commenting",
   "displayName": "Inline Commenting",
   "description": "Add comments to highlighted text, similar to Google Docs",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "icon": "icon.png",
   "publisher": "KenLee",
   "engines": {
@@ -13,8 +13,16 @@
     "type": "git",
     "url": "https://github.com/realkenlee/vscode-in-line-commenting.git"
   },
-  "categories": ["Other"],
-  "keywords": ["comments", "annotations", "review", "google docs", "inline"],
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "comments",
+    "annotations",
+    "review",
+    "google docs",
+    "inline"
+  ],
   "activationEvents": [
     "onStartupFinished"
   ],

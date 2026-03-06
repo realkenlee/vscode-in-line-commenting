@@ -647,7 +647,7 @@ export function activate(context: vscode.ExtensionContext): void {
   refreshDecorations(comments, workspaceRoot);
 
   context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(editor => {
+    vscode.window.onDidChangeActiveTextEditor((editor: vscode.TextEditor | undefined) => {
       if (editor) {
         applyDecorations(editor, comments, workspaceRoot);
       }
@@ -674,7 +674,7 @@ export function activate(context: vscode.ExtensionContext): void {
         currentDraft = undefined;
       });
 
-      panel.webview.onDidReceiveMessage(async msg => {
+      panel.webview.onDidReceiveMessage(async (msg: Record<string, unknown>) => {
         switch (msg.action) {
           case 'navigate': {
             const comment = comments.find(c => c.id === msg.commentId);
@@ -694,7 +694,7 @@ export function activate(context: vscode.ExtensionContext): void {
               endLine: currentDraft.endLine,
               endChar: currentDraft.endChar,
               selectedText: currentDraft.selectedText,
-              text: msg.text,
+              text: msg.text as string,
               timestamp: new Date().toISOString(),
               resolved: false,
             };
@@ -722,7 +722,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
           case 'edit': {
             comments = comments.map(c =>
-              c.id === msg.commentId ? { ...c, text: msg.text, editedAt: new Date().toISOString() } : c
+              c.id === msg.commentId ? { ...c, text: msg.text as string, editedAt: new Date().toISOString() } : c
             );
             saveComments(storageRoot, workspaceRoot, comments);
             refreshDecorations(comments, workspaceRoot);
